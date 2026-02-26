@@ -42,11 +42,11 @@
 #include "common/textures/hw_material.h"
 // i_interface.h doesn't exist in zandronum - commented out
 // #include "i_interface.h"
+// Include gl_texture.cpp's TexFilter definition - forward declare it
+extern TexFilter_s TexFilter[];
 
 namespace OpenGLRenderer
 {
-
-extern TexFilter_s TexFilter[];
 
 
 FSamplerManager::FSamplerManager()
@@ -125,6 +125,7 @@ void FSamplerManager::SetTextureFilterMode()
 
 	int filter = gl_texture_filter;
 
+	// Use global namespace TexFilter (defined in gl/textures/gl_texture.cpp)
 	for (int i = 0; i < 4; i++)
 	{
 		glSamplerParameteri(mSamplers[i], GL_TEXTURE_MIN_FILTER, TexFilter[filter].minfilter);

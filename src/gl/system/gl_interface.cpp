@@ -320,8 +320,49 @@ void gl_LoadExtensions()
 		glBindRenderbuffer			= (PFNGLBINDRENDERBUFFERPROC)myGetProcAddress("glBindRenderbuffer");
 		glRenderbufferStorage		= (PFNGLRENDERBUFFERSTORAGEPROC)myGetProcAddress("glRenderbufferStorage");
 		glFramebufferRenderbuffer	= (PFNGLFRAMEBUFFERRENDERBUFFERPROC)myGetProcAddress("glFramebufferRenderbuffer");
+		glCheckFramebufferStatus	= (PFNGLCHECKFRAMEBUFFERSTATUSPROC)myGetProcAddress("glCheckFramebufferStatus");
+		glBlitFramebuffer			= (PFNGLBLITFRAMEBUFFERPROC)myGetProcAddress("glBlitFramebuffer");
+		glRenderbufferStorageMultisample = (PFNGLRENDERBUFFERSTORAGEMULTISAMPLEPROC)myGetProcAddress("glRenderbufferStorageMultisample");
+		glTexImage2DMultisample		= (PFNGLTEXIMAGE2DMULTISAMPLEPROC)myGetProcAddress("glTexImage2DMultisample");
 
 		gl.flags|=RFL_FRAMEBUFFER;
+	}
+
+	if (CheckExtension("GL_ARB_copy_buffer"))
+	{
+		glCopyBufferSubData = (PFNGLCOPYBUFFERSUBDATAPROC)myGetProcAddress("glCopyBufferSubData");
+	}
+
+	if (CheckExtension("GL_ARB_uniform_buffer_object"))
+	{
+		glBindBufferRange = (PFNGLBINDBUFFERRANGEPROC)myGetProcAddress("glBindBufferRange");
+		glBindBufferBase = (PFNGLBINDBUFFERBASEPROC)myGetProcAddress("glBindBufferBase");
+	}
+
+	if (CheckExtension("GL_ARB_sync"))
+	{
+		glFenceSync = (PFNGLFENCESYNCPROC)myGetProcAddress("glFenceSync");
+		glDeleteSync = (PFNGLDELETESYNCPROC)myGetProcAddress("glDeleteSync");
+		glClientWaitSync = (PFNGLCLIENTWAITSYNCPROC)myGetProcAddress("glClientWaitSync");
+	}
+
+	if (CheckExtension("GL_ARB_draw_buffers"))
+	{
+		glDrawBuffers = (PFNGLDRAWBUFFERSPROC)myGetProcAddress("glDrawBuffers");
+	}
+
+	if (CheckExtension("GL_ARB_sampler_objects"))
+	{
+		glGenSamplers = (PFNGLGENSAMPLERSPROC)myGetProcAddress("glGenSamplers");
+		glDeleteSamplers = (PFNGLDELETESAMPLERSPROC)myGetProcAddress("glDeleteSamplers");
+		glBindSampler = (PFNGLBINDSAMPLERPROC)myGetProcAddress("glBindSampler");
+		glSamplerParameteri = (PFNGLSAMPLERPARAMETERIPROC)myGetProcAddress("glSamplerParameteri");
+		glSamplerParameterf = (PFNGLSAMPLERPARAMETERFPROC)myGetProcAddress("glSamplerParameterf");
+	}
+
+	if (CheckExtension("GL_ARB_vertex_type_2_10_10_10_rev") || CheckExtension("GL_ARB_vertex_type_10_10_10_2"))
+	{
+		glVertexAttribIPointer = (PFNGLVERTEXATTRIBIPOINTERPROC)myGetProcAddress("glVertexAttribIPointer");
 	}
 
 #if 0

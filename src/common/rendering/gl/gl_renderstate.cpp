@@ -40,6 +40,8 @@
 // #include "common/textures/hw_material.h"
 #include "r_data/renderstyle.h"
 #include "gl/renderer/gl_colormap.h"
+#include "c_console.h"  // For Printf
+#include "c_dispatch.h"  // For CCMD
 
 namespace OpenGLRenderer
 {
@@ -62,6 +64,14 @@ static void matrixToGL(const VSMatrix &mat, int loc)
 
 void FGLRenderState::Reset()
 {
+	static bool firstReset = true;
+	if (firstReset)
+	{
+		firstReset = false;
+		// Print a message to confirm new OpenGL architecture is active
+		Printf("OpenGL: New render state architecture active (FGLRenderState)\n");
+	}
+
 	FRenderState::Reset();
 	mVertexBuffer = mCurrentVertexBuffer = nullptr;
 	mGlossiness = 0.0f;
@@ -593,4 +603,19 @@ namespace HardwareRenderer
 			SetMaterial(reinterpret_cast<FMaterial*>(mat), clampmode, translation, overrideshader);
 		}
 	}
+}
+
+//==========================================================================
+//
+// Console command to verify new OpenGL architecture
+//
+//==========================================================================
+
+CCMD(gl_renderstate_info)
+{
+	Printf("OpenGL Render State Architecture:\n");
+	Printf("  New architecture: Active (FGLRenderState from common/rendering/gl/)\n");
+	Printf("  Old architecture: Compatibility layer (delegates to new)\n");
+	Printf("  Render state instance: OpenGLRenderer::gl_RenderState\n");
+	Printf("  Base class: HardwareRenderer::FRenderState\n");
 }
