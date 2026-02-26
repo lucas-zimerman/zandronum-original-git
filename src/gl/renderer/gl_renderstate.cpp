@@ -46,6 +46,7 @@
 #include "gl/renderer/gl_renderer.h"
 #include "gl/renderer/gl_renderstate.h"
 #include "gl/renderer/gl_colormap.h"
+#include "common/rendering/gl/gl_renderstate.h"  // New architecture - includes the full definition
 
 // [EP] New #includes.
 #include "gl/gl_functions.h"
@@ -56,6 +57,109 @@ FRenderState gl_RenderState;
 int FStateAttr::ChangeCounter;
 
 CVAR(Bool, gl_direct_state_change, true, 0)
+
+//==========================================================================
+//
+// Compatibility layer methods - delegate to new render state
+//
+//==========================================================================
+
+// Use a helper function to get the new render state
+// The gl_RenderState is defined in common/rendering/gl/gl_renderstate.cpp
+// and declared as extern in common/rendering/gl/gl_renderstate.h
+static OpenGLRenderer::FGLRenderState& GetNewRenderState()
+{
+	// Access the global instance defined in common/rendering/gl/gl_renderstate.cpp
+	// The extern declaration from the header should make this available
+	return OpenGLRenderer::gl_RenderState;
+}
+
+// Forward declaration resolved - now we have the full definition
+OpenGLRenderer::FGLRenderState& FRenderState::GetNewState()
+{
+	return GetNewRenderState();
+}
+
+void FRenderState::SetTextureMode(int mode)
+{
+	mTextureMode = mode;
+	GetNewRenderState().SetTextureMode(mode);
+}
+
+void FRenderState::EnableTexture(bool on)
+{
+	mTextureEnabled = on;
+	GetNewRenderState().EnableTexture(on);
+}
+
+void FRenderState::EnableFog(bool on)
+{
+	mFogEnabled = on;
+	GetNewRenderState().EnableFog(on ? 1 : 0);
+}
+
+void FRenderState::SetEffect(int eff)
+{
+	mSpecialEffect = eff;
+	GetNewRenderState().SetEffect(eff);
+}
+
+void FRenderState::EnableGlow(bool on)
+{
+	mGlowEnabled = on;
+	GetNewRenderState().EnableGlow(on);
+}
+
+void FRenderState::EnableBrightmap(bool on)
+{
+	mBrightmapEnabled = on;
+	GetNewRenderState().EnableBrightmap(on);
+}
+
+void FRenderState::SetCameraPos(float x, float y, float z)
+{
+	mCameraPos.Set(x,y,z);
+	// SetCameraPos is not in the new FRenderState - camera position is managed via GLRenderer->mCameraPos
+	// The new render state gets camera position from GLRenderer, not directly set
+	// This method is kept for compatibility but doesn't directly set it in the new state
+}
+
+void FRenderState::SetGlowParams(float *t, float *b)
+{
+	mGlowTop.Set(t[0], t[1], t[2], t[3]);
+	mGlowBottom.Set(b[0], b[1], b[2], b[3]);
+	// Update new render state's glow params using public method
+	GetNewRenderState().SetGlowParams(t, b);
+}
+
+void FRenderState::SetDynLight(float r,float g, float b)
+{
+	mDynLight[0] = r;
+	mDynLight[1] = g;
+	mDynLight[2] = b;
+	GetNewRenderState().SetDynLight(r, g, b);
+}
+
+void FRenderState::SetFog(PalEntry c, float d)
+{
+	mFogColor = c;
+	if (d >= 0.0f) mFogDensity = d;
+	GetNewRenderState().SetFog(c, d);
+}
+
+void FRenderState::SetLightParms(float f, float d)
+{
+	mLightParms[0] = f;
+	mLightParms[1] = d;
+	// Note: New architecture has different parameter order: SetLightParms(float f, float d) -> mLightParms[1] = f, mLightParms[0] = d
+	GetNewRenderState().SetLightParms(f, d);
+}
+
+void FRenderState::SetFixedColormap(int cm)
+{
+	mColormapState = cm;
+	GetNewRenderState().SetSpecialColormap(cm, 0.0f);
+}
 
 
 //==========================================================================

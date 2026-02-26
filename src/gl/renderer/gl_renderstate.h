@@ -3,6 +3,13 @@
 
 #include <string.h>
 #include "c_cvars.h"
+#include "r_data/renderstyle.h"
+
+// Forward declaration to avoid circular dependency
+namespace OpenGLRenderer
+{
+	class FGLRenderState;
+}
 
 EXTERN_CVAR(Bool, gl_direct_state_change)
 
@@ -85,6 +92,9 @@ enum EEffect
 
 class FRenderState
 {
+	// Keep old members for compatibility
+	// Note: New FGLRenderState architecture is available in common/rendering/gl/
+	// This class maintains backward compatibility with existing zandronum code
 	bool mTextureEnabled;
 	bool mFogEnabled;
 	bool mGlowEnabled;
@@ -126,6 +136,9 @@ class FRenderState
 	float ffFogDensity;
 
 	bool ApplyShader();
+	
+	// Get reference to new render state - implementation in .cpp file
+	OpenGLRenderer::FGLRenderState& GetNewState();
 
 public:
 	FRenderState()
@@ -138,83 +151,33 @@ public:
 	int SetupShader(bool cameratexture, int &shaderindex, int &cm, float warptime);
 	void Apply(bool forcenoshader = false);
 
-	void SetTextureMode(int mode)
-	{
-		mTextureMode = mode;
-	}
-
-	void EnableTexture(bool on)
-	{
-		mTextureEnabled = on;
-	}
-
-	void EnableFog(bool on)
-	{
-		mFogEnabled = on;
-	}
-
-	void SetEffect(int eff)
-	{
-		mSpecialEffect = eff;
-	}
-
-	void EnableGlow(bool on)
-	{
-		mGlowEnabled = on;
-	}
-
+	void SetTextureMode(int mode);
+	void EnableTexture(bool on);
+	void EnableFog(bool on);
+	void SetEffect(int eff);
+	void EnableGlow(bool on);
 	void EnableLight(bool on)
 	{
 		mLightEnabled = on;
+		// Note: mLightEnabled is tracked but not directly exposed in new render state
+		// It's used for shader selection in ApplyShader()
 	}
-
-	void EnableBrightmap(bool on)
-	{
-		mBrightmapEnabled = on;
-	}
-
-	void SetCameraPos(float x, float y, float z)
-	{
-		mCameraPos.Set(x,y,z);
-	}
-
-	void SetGlowParams(float *t, float *b)
-	{
-		mGlowTop.Set(t[0], t[1], t[2], t[3]);
-		mGlowBottom.Set(b[0], b[1], b[2], b[3]);
-	}
-
-	void SetDynLight(float r,float g, float b)
-	{
-		mDynLight[0] = r;
-		mDynLight[1] = g;
-		mDynLight[2] = b;
-	}
-
-	void SetFog(PalEntry c, float d)
-	{
-		mFogColor = c;
-		if (d >= 0.0f) mFogDensity = d;
-	}
-
-	void SetLightParms(float f, float d)
-	{
-		mLightParms[0] = f;
-		mLightParms[1] = d;
-	}
-
+	void EnableBrightmap(bool on);
+	void SetCameraPos(float x, float y, float z);
+	void SetGlowParams(float *t, float *b);
+	void SetDynLight(float r,float g, float b);
+	void SetFog(PalEntry c, float d);
+	void SetLightParms(float f, float d);
 	void SetLights(int *numlights, float *lightdata)
 	{
 		mNumLights[0] = numlights[0];
 		mNumLights[1] = numlights[1];
 		mNumLights[2] = numlights[2];
 		mLightData = lightdata;	// caution: the data must be preserved by the caller until the 'apply' call!
+		// Note: Light data is handled differently in new architecture
+		// This will need to be adapted when migrating to new system
 	}
-
-	void SetFixedColormap(int cm)
-	{
-		mColormapState = cm;
-	}
+	void SetFixedColormap(int cm);
 
 	PalEntry GetFogColor() const
 	{

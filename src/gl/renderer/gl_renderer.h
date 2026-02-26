@@ -56,6 +56,7 @@ public:
 	FGLThreadManager *mThreadManager;
 	int gl_spriteindex;
 	unsigned int mFBID;
+	unsigned int mOldFBID;
 
 	FTexture *glpart2;
 	FTexture *glpart;

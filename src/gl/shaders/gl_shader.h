@@ -7,6 +7,9 @@
 
 extern bool gl_shaderactive;
 
+// Forward declaration for new render state architecture
+namespace OpenGLRenderer { class FGLRenderState; }
+
 const int VATTR_GLOWDISTANCE = 15;
 const int VATTR_FOGPARAMS = 14;
 const int VATTR_LIGHTLEVEL = 13; // Korshun.
@@ -20,6 +23,7 @@ class FShader
 {
 	friend class FShaderContainer;
 	friend class FRenderState;
+	friend class OpenGLRenderer::FGLRenderState;  // Friend declaration for new render state architecture
 
 	unsigned int hShader;
 	unsigned int hVertProg;
