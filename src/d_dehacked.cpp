@@ -141,6 +141,54 @@ static TArray<FSoundID> SoundMap;
 // Names of different actor types, in original Doom 2 order
 static TArray<const PClass *> InfoNames;
 
+// [LZ] DSDHacked (https://doomwiki.org/wiki/DSDhacked): once a patch has
+// identified itself as "Doom version = 2021", thing and frame numbers beyond
+// the static DEHEXTRA pools above are no longer errors -- real DECOHack
+// output routinely starts its own content at large, arbitrary bases (e.g.
+// 70000) specifically to avoid colliding with anything else, so there's no
+// fixed ceiling that would cover every patch. Matching how GZDoom implements
+// this, such numbers get a class/state created for them lazily, on first
+// reference, rather than requiring an enormous (and mostly wasted) static
+// pool sized for the largest number any patch happens to pick.
+static bool DsdHackedEnabled = false;
+static TMap<int, PClass *> DsdActors;
+static TMap<int, FState *> DsdStates;
+
+static const PClass *FindOrCreateDsdActor(int thingnum)
+{
+	if (!DsdHackedEnabled)
+	{
+		return NULL;
+	}
+
+	PClass **cached = DsdActors.CheckKey(thingnum);
+	if (cached != NULL)
+	{
+		return *cached;
+	}
+
+	FString name;
+	name.Format("DsdHackedThing%d", thingnum);
+	PClass *cls = RUNTIME_CLASS(AActor)->CreateDerivedClass(name, sizeof(AActor));
+	DsdActors.Insert(thingnum, cls);
+	return cls;
+}
+
+// [LZ] Resolves a 1-based DEHACKED thing number to a class, falling back to
+// FindOrCreateDsdActor() for anything beyond the static InfoNames pool.
+static const PClass *LookupThingType(int value)
+{
+	if (value <= 0)
+	{
+		return NULL;
+	}
+	if (value <= (int)InfoNames.Size())
+	{
+		return InfoNames[value - 1];
+	}
+	return FindOrCreateDsdActor(value);
+}
+
 // bit flags for PatchThing (a .bex extension):
 struct BitName
 {
@@ -554,6 +602,28 @@ static FState *FindState (int statenum)
 		}
 		stateacc += StateMap[i].StateSpan;
 	}
+
+	// [LZ] DSDHacked: fall back to a lazily-created, individually-allocated
+	// state for any number beyond the static pools. Each one is permanent for
+	// the life of the process and never moves, so pointers into it (held by
+	// other states' NextState chains, etc.) stay valid forever, same as any
+	// other state.
+	if (DsdHackedEnabled && statenum > 0)
+	{
+		FState **cached = DsdStates.CheckKey(statenum);
+		if (cached != NULL)
+		{
+			return *cached;
+		}
+
+		FState *state = new FState;
+		memset(state, 0, sizeof(FState));
+		state->Tics = -1;
+		state->NextState = state;
+		state->sprite = GetSpriteIndex("TNT1");
+		DsdStates.Insert(statenum, state);
+		return state;
+	}
 	return NULL;
 }
 
@@ -831,13 +901,16 @@ void SetDehParams(FState * state, int codepointer)
 		if (value2) StateParams.Set(ParamIndex+4, new FxConstant(value2/65536., *pos)); // hrange
 		break;
 	case MBF_Spawn:
-		if (InfoNames[value1-1] == NULL)
 		{
-			I_Error("No class found for dehackednum %d!\n", value1+1);
-			return;
+			const PClass *spawntype = LookupThingType(value1);
+			if (spawntype == NULL)
+			{
+				I_Error("No class found for dehackednum %d!\n", value1+1);
+				return;
+			}
+			StateParams.Set(ParamIndex+0, new FxConstant(spawntype, *pos));	// type
+			StateParams.Set(ParamIndex+2, new FxConstant(value2, *pos));		// height
 		}
-		StateParams.Set(ParamIndex+0, new FxConstant(InfoNames[value1-1], *pos));	// type
-		StateParams.Set(ParamIndex+2, new FxConstant(value2, *pos));				// height
 		break;
 	case MBF_Turn:
 		// Intentional fall through. I tried something more complicated by creating an
@@ -1068,9 +1141,10 @@ static void SetMBF21Params(FState *state, int codepointer)
 		case M21ARG_CLASS:
 			if (provided && val != 0)
 			{
-				if (val > 0 && (unsigned)val <= InfoNames.Size() && InfoNames[val - 1] != NULL)
+				const PClass *argtype = LookupThingType(val);
+				if (argtype != NULL)
 				{
-					StateParams.Set(ParamIndex + m.param, new FxConstant(InfoNames[val - 1], *pos));
+					StateParams.Set(ParamIndex + m.param, new FxConstant(argtype, *pos));
 				}
 				else
 				{
@@ -1228,28 +1302,33 @@ static int PatchThing (int thingy)
 	type = NULL;
 	info = (AActor *)&dummy;
 	ednum = &dummyed;
-	if (thingy > (int)InfoNames.Size() || thingy <= 0)
+	if (thingy <= 0)
 	{
 		Printf ("Thing %d out of range.\n", thingy);
 	}
 	else
 	{
 		DPrintf ("Thing %d\n", thingy);
-		if (thingy > 0)
+		if (thingy <= (int)InfoNames.Size())
 		{
 			type = InfoNames[thingy - 1];
-			if (type == NULL)
-			{
-				info = (AActor *)&dummy;
-				ednum = &dummyed;
-				// An error for the name has already been printed while loading DEHSUPP.
-				Printf ("Could not find thing %d\n", thingy);
-			}
-			else
-			{
-				info = GetDefaultByType (type);
-				ednum = &type->ActorInfo->DoomEdNum;
-			}
+		}
+		else
+		{
+			// [LZ] DSDHacked: beyond the static pool, create the class on demand.
+			type = FindOrCreateDsdActor(thingy);
+		}
+		if (type == NULL)
+		{
+			info = (AActor *)&dummy;
+			ednum = &dummyed;
+			// An error for the name has already been printed while loading DEHSUPP.
+			Printf ("Could not find thing %d\n", thingy);
+		}
+		else
+		{
+			info = GetDefaultByType (type);
+			ednum = &type->ActorInfo->DoomEdNum;
 		}
 	}
 
@@ -1409,10 +1488,11 @@ static int PatchThing (int thingy)
 		{
 			if (type != NULL)
 			{
-				if (val >= 1 && val <= (int)InfoNames.Size() && InfoNames[val - 1] != NULL)
+				const PClass *dropitem = val >= 1 ? LookupThingType((int)val) : NULL;
+				if (dropitem != NULL)
 				{
 					FDropItem *di = new FDropItem;
-					di->Name = InfoNames[val - 1]->TypeName;
+					di->Name = dropitem->TypeName;
 					di->probability = 255;
 					di->amount = -1;
 					di->Next = NULL;
@@ -3283,7 +3363,10 @@ static bool DoDehPatch()
 	else if (dversion == 21)
 		dversion = 4;
 	else if (dversion == 2021)	// [LZ] MBF21 patches identify themselves like this.
+	{
 		dversion = 3;
+		DsdHackedEnabled = true;	// [LZ] MBF21 patches may also use DSDHacked's unlimited numbering.
+	}
 	else
 	{
 		Printf ("Patch created with unknown DOOM version.\nAssuming version 1.9.\n");
