@@ -113,6 +113,17 @@ struct DEHSprName
 };
 static TArray<DEHSprName> OrgSprNames;
 
+// [LZ] DSDHacked: "Sprite number" assignments that couldn't be resolved when
+// they were parsed because the sprite only gets its name later, in a [SPRITES]
+// block. These are resolved again at the end of the patch.
+struct DehDeferredSprite
+{
+	FState *state;
+	int frame;
+	int sprite;
+};
+static TArray<DehDeferredSprite> DeferredSpriteRefs;
+
 struct StateMapper
 {
 	FState *State;
@@ -425,6 +436,8 @@ static int PatchStrings (int);
 static int PatchPars (int);
 static int PatchCodePtrs (int);
 static int PatchMusic (int);
+static int PatchSpriteNames (int);	// [LZ] DSDHacked
+static int PatchSoundNames (int);	// [LZ] DSDHacked
 static int DoInclude (int);
 static bool DoDehPatch();
 
@@ -449,6 +462,9 @@ static const struct {
 	{ "[PARS]",		PatchPars },
 	{ "[CODEPTR]",	PatchCodePtrs },
 	{ "[MUSIC]",	PatchMusic },
+	// [LZ] These appear in DSDHacked patches.
+	{ "[SPRITES]",	PatchSpriteNames },
+	{ "[SOUNDS]",	PatchSoundNames },
 	{ NULL, NULL },
 };
 
@@ -1923,27 +1939,18 @@ static int PatchFrame (int frameNum)
 		}
 		else if (keylen == 13 && stricmp (Line1, "Sprite number") == 0)
 		{
-			unsigned int i;
-
-			if (val < (int)OrgSprNames.Size())
+			// [LZ] DSDHacked patches may name new sprites in a [SPRITES] block
+			// after this frame, so defer anything that can't be resolved yet.
+			// Registering the sprite here is fine, because the sprite manager
+			// only looks for their lumps when a level is loaded.
+			if (val >= 0 && val < (int)OrgSprNames.Size() && OrgSprNames[val].c[0] != 0)
 			{
-				for (i = 0; i < sprites.Size(); i++)
-				{
-					if (memcmp (OrgSprNames[val].c, sprites[i].name, 4) == 0)
-					{
-						info->sprite = (int)i;
-						break;
-					}
-				}
-				if (i == sprites.Size ())
-				{
-					Printf ("Frame %d: Sprite %d (%s) is undefined\n",
-						frameNum, val, OrgSprNames[val].c);
-				}
+				info->sprite = GetSpriteIndex (OrgSprNames[val].c);
 			}
-			else
+			else if (info != &dummy)
 			{
-				Printf ("Frame %d: Sprite %d out of range\n", frameNum, val);
+				DehDeferredSprite ref = { info, frameNum, val };
+				DeferredSpriteRefs.Push (ref);
 			}
 		}
 		else if (keylen == 10 && stricmp (Line1, "Next frame") == 0)
@@ -2751,6 +2758,107 @@ static int PatchMusic (int dummy)
 	return result;
 }
 
+// [LZ] DSDHacked: a [SPRITES] block assigns names to (usually new) sprite
+// table indices, e.g. "245 = ABCD". The sprite is also registered with the
+// sprite manager so that R_InitSprites later picks up its lumps.
+static int PatchSpriteNames (int dummy)
+{
+	int result;
+
+	DPrintf ("[Sprites]\n");
+
+	while ((result = GetLine ()) == 1)
+	{
+		if (IsNum (Line1))
+		{
+			int index = atoi (Line1);
+			stripwhite (Line2);
+
+			if (index < 0 || strlen (Line2) != 4)
+			{
+				Printf ("Bad sprite name assignment: %s = %s\n", Line1, Line2);
+				continue;
+			}
+
+			if ((unsigned)index >= OrgSprNames.Size ())
+			{
+				DEHSprName zero;
+				memset (&zero, 0, sizeof(zero));
+
+				while ((unsigned)index >= OrgSprNames.Size ())
+				{
+					OrgSprNames.Push (zero);
+				}
+			}
+
+			DEHSprName &name = OrgSprNames[index];
+			for (int i = 0; i < 4; ++i)
+			{
+				name.c[i] = toupper (Line2[i]);
+			}
+			name.c[4] = 0;
+			GetSpriteIndex (name.c);
+		}
+		else
+		{
+			// The old BEX form that renames a sprite by its mnemonic. A "Text"
+			// chunk does the same thing, so this has never been supported here.
+			Printf ("Sprite mnemonic assignment %s ignored.\n", Line1);
+		}
+	}
+
+	return result;
+}
+
+// [LZ] DSDHacked: a [SOUNDS] block assigns names to new sound indices,
+// e.g. "700 = CASIN0" for the lump DSCASIN0.
+static int PatchSoundNames (int dummy)
+{
+	int result;
+
+	DPrintf ("[Sounds]\n");
+
+	while ((result = GetLine ()) == 1)
+	{
+		if (IsNum (Line1))
+		{
+			int index = atoi (Line1);
+			stripwhite (Line2);
+
+			if (index < 1)
+			{
+				Printf ("Bad sound index %s\n", Line1);
+				continue;
+			}
+
+			FString lumpname;
+			lumpname << "DS" << Line2;
+			int sndid = S_AddSound (Line2, lumpname);
+
+			while ((unsigned)index > SoundMap.Size ())
+			{
+				SoundMap.Push (FSoundID(0));
+			}
+			SoundMap[index - 1] = FSoundID(sndid);
+		}
+		else
+		{
+			// The old BEX form that renames a sound by its mnemonic.
+			Printf ("Sound mnemonic assignment %s ignored.\n", Line1);
+		}
+	}
+
+	// [LZ] S_AddSound() only appends to S_sfx; it doesn't touch the name->index
+	// hash table, which was already built (once) from the SNDINFO-defined
+	// sounds. Left alone, S_FindSound() would compute hash buckets against the
+	// grown S_sfx.Size(), which no longer matches the buckets those older
+	// sounds (including all the vanilla ones) were chained under, making them
+	// unfindable by name until something rebuilds the table.
+	S_HashSounds ();
+
+	return result;
+}
+
 static int PatchText (int oldSize)
 {
 	int newSize;
@@ -3203,6 +3311,23 @@ static bool DoDehPatch()
 			cont = HandleMode (Line1, atoi (Line2));
 		}
 	} while (cont);
+
+	// [LZ] DSDHacked: resolve sprite assignments that were waiting for a
+	// [SPRITES] block to name their sprite.
+	for (unsigned int i = 0; i < DeferredSpriteRefs.Size (); ++i)
+	{
+		const DehDeferredSprite &ref = DeferredSpriteRefs[i];
+
+		if (ref.sprite >= 0 && ref.sprite < (int)OrgSprNames.Size() && OrgSprNames[ref.sprite].c[0] != 0)
+		{
+			ref.state->sprite = GetSpriteIndex (OrgSprNames[ref.sprite].c);
+		}
+		else
+		{
+			Printf ("Frame %d: Sprite %d out of range\n", ref.frame, ref.sprite);
+		}
+	}
+	DeferredSpriteRefs.Clear ();
 
 	UnloadDehSupp ();
 	delete[] PatchName;
