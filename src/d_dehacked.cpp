@@ -169,6 +169,103 @@ struct CodePointerAlias
 };
 static TArray<CodePointerAlias> MBFCodePointers;
 
+// [LZ] MBF21 DeHackEd support --------------------------------------------
+// Per-frame argument storage for the MBF21 "Args1".."Args8" frame fields.
+struct MBF21FrameArgs
+{
+	int value[8];
+	BYTE argsused;	// bit mask of args actually provided by the patch
+};
+static TMap<FState *, MBF21FrameArgs> MBF21StateArgs;
+
+// How a single MBF21 codepointer argument is converted into a DECORATE
+// function parameter.
+enum EMBF21ArgType
+{
+	M21ARG_INT,		// plain integer
+	M21ARG_FIXED,	// fixed point number, becomes a float parameter
+	M21ARG_STATE,	// dehacked state index
+	M21ARG_SOUND,	// dehacked sound index
+	M21ARG_CLASS,	// dehacked thing type
+	M21ARG_ATTN,	// sound attenuation: zero is normal, everything else full volume
+};
+
+struct MBF21ArgMapping
+{
+	BYTE type;		// EMBF21ArgType
+	BYTE param;		// index of the DECORATE parameter this arg is stored in
+	int defvalue;	// raw default per the MBF21 spec, used when the patch omits the arg
+};
+
+struct MBF21ConstParam
+{
+	SBYTE param;	// DECORATE parameter index, -1 for none
+	int value;
+};
+
+struct MBF21CodePointerInfo
+{
+	const char *name;		// name the DEHACKED patch uses
+	const char *function;	// native function implementing it
+	BYTE numargs;			// number of Args fields the pointer uses
+	BYTE numparams;			// total parameter count of the native function
+	MBF21ArgMapping args[8];
+	MBF21ConstParam consts[2];	// constant parameters needed when aliasing to a generic function
+};
+
+// States whose codepointer was set to an MBF21 pointer; their args are
+// converted after the patch has been fully parsed.
+struct MBF21ParamState
+{
+	FState *state;
+	int pointer;	// index into MBF21CodePointers
+};
+static TArray<MBF21ParamState> MBF21ParamStates;
+
+// Mnemonics accepted in the Thing "MBF21 Bits" field.
+static const struct { DWORD bit; const char *name; } MBF21ThingBitNames[] =
+{
+	{ DEH21F_LOGRAV,			"LOGRAV" },
+	{ DEH21F_SHORTMRANGE,		"SHORTMRANGE" },
+	{ DEH21F_DMGIGNORED,		"DMGIGNORED" },
+	{ DEH21F_NORADIUSDMG,		"NORADIUSDMG" },
+	{ DEH21F_FORCERADIUSDMG,	"FORCERADIUSDMG" },
+	{ DEH21F_HIGHERMPROB,		"HIGHERMPROB" },
+	{ DEH21F_RANGEHALF,			"RANGEHALF" },
+	{ DEH21F_NOTHRESHOLD,		"NOTHRESHOLD" },
+	{ DEH21F_LONGMELEE,			"LONGMELEE" },
+	{ DEH21F_BOSS,				"BOSS" },
+	{ DEH21F_MAP07BOSS1,		"MAP07BOSS1" },
+	{ DEH21F_MAP07BOSS2,		"MAP07BOSS2" },
+	{ DEH21F_E1M8BOSS,			"E1M8BOSS" },
+	{ DEH21F_E2M8BOSS,			"E2M8BOSS" },
+	{ DEH21F_E3M8BOSS,			"E3M8BOSS" },
+	{ DEH21F_E4M6BOSS,			"E4M6BOSS" },
+	{ DEH21F_E4M8BOSS,			"E4M8BOSS" },
+	{ DEH21F_RIP,				"RIP" },
+	{ DEH21F_FULLVOLSOUNDS,		"FULLVOLSOUNDS" },
+};
+
+// Mnemonics accepted in the Weapon "MBF21 Bits" field.
+enum
+{
+	DEH21WF_NOTHRUST		= 0x001,
+	DEH21WF_SILENT			= 0x002,
+	DEH21WF_NOAUTOFIRE		= 0x004,
+	DEH21WF_FLEEMELEE		= 0x008,
+	DEH21WF_AUTOSWITCHFROM	= 0x010,
+	DEH21WF_NOAUTOSWITCHTO	= 0x020,
+};
+static const struct { DWORD bit; const char *name; } MBF21WeaponBitNames[] =
+{
+	{ DEH21WF_NOTHRUST,			"NOTHRUST" },
+	{ DEH21WF_SILENT,			"SILENT" },
+	{ DEH21WF_NOAUTOFIRE,		"NOAUTOFIRE" },
+	{ DEH21WF_FLEEMELEE,		"FLEEMELEE" },
+	{ DEH21WF_AUTOSWITCHFROM,	"AUTOSWITCHFROM" },
+	{ DEH21WF_NOAUTOSWITCHTO,	"NOAUTOSWITCHTO" },
+};
+
 struct AmmoPerAttack
 {
 	actionf_p func;
@@ -685,13 +782,18 @@ void SetDehParams(FState * state, int codepointer)
 		state->ParameterIndex-1, sym->defaultparameterindex);
 	if (state->ParameterIndex-1 == sym->defaultparameterindex)
 	{
-		int a = PrepareStateParameters(state, MBFCodePointers[codepointer].params+1, 
-			FState::StaticFindStateOwner(state)) -1;
+		// [LZ] This copy used to be shifted down a slot (Set(a+i) with a one less
+		// than what PrepareStateParameters returned), so every cloned default
+		// ended up in its neighbour's slot. The MBF pointers below mostly masked
+		// this by setting the important parameters explicitly, but it made the
+		// remaining defaults subtly wrong.
+		int a = PrepareStateParameters(state, MBFCodePointers[codepointer].params,
+			FState::StaticFindStateOwner(state));
 		int b = sym->defaultparameterindex;
 		//		StateParams.Copy(a, b, MBFParams[codepointer]);
 		// Meh, function doesn't work. For some reason it resets the paramindex to the default value.
 		// For instance, a dehacked Commander Keen calling A_Explode would result in a crash as
-		// ACTION_PARAM_INT(damage, 0) would properly evaluate at paramindex 1377, but then 
+		// ACTION_PARAM_INT(damage, 0) would properly evaluate at paramindex 1377, but then
 		// ACTION_PARAM_INT(distance, 1) would improperly evaluate at paramindex 148! Now I'm not sure
 		// whether it's a genuine problem or working as intended and merely not appropriate for the
 		// task at hand here. So rather than modify it, I use a simple for loop of Set()s and Get()s,
@@ -764,6 +866,318 @@ void SetDehParams(FState * state, int codepointer)
 		// This simply should not happen.
 		Printf("Unmanaged dehacked codepointer alias num %i\n", codepointer);
 	}
+}
+
+// [LZ] The MBF21 codepointers and how their Args fields are converted into
+// DECORATE function parameters. Where a matching generic function already
+// existed it is reused; everything else got a dedicated native function.
+#define M21_NOARG		{ 0, 0, 0 }
+#define M21_NOCONST		{ -1, 0 }
+static const MBF21CodePointerInfo MBF21CodePointers[] =
+{
+	{ "A_SpawnObject", "A_SpawnObject", 8, 8,
+		{ { M21ARG_CLASS, 0, 0 }, { M21ARG_FIXED, 1, 0 }, { M21ARG_FIXED, 2, 0 }, { M21ARG_FIXED, 3, 0 },
+		  { M21ARG_FIXED, 4, 0 }, { M21ARG_FIXED, 5, 0 }, { M21ARG_FIXED, 6, 0 }, { M21ARG_FIXED, 7, 0 } },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_MonsterProjectile", "A_MonsterProjectile", 5, 5,
+		{ { M21ARG_CLASS, 0, 0 }, { M21ARG_FIXED, 1, 0 }, { M21ARG_FIXED, 2, 0 }, { M21ARG_FIXED, 3, 0 },
+		  { M21ARG_FIXED, 4, 0 }, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_MonsterBulletAttack", "A_MonsterBulletAttack", 5, 5,
+		{ { M21ARG_FIXED, 0, 0 }, { M21ARG_FIXED, 1, 0 }, { M21ARG_INT, 2, 1 }, { M21ARG_INT, 3, 3 },
+		  { M21ARG_INT, 4, 5 }, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_MonsterMeleeAttack", "A_MonsterMeleeAttack", 4, 4,
+		{ { M21ARG_INT, 0, 3 }, { M21ARG_INT, 1, 8 }, { M21ARG_SOUND, 2, 0 }, { M21ARG_FIXED, 3, 0 },
+		  M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_RadiusDamage", "A_Explode", 2, 8,
+		{ { M21ARG_INT, 0, 0 }, { M21ARG_INT, 1, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_NoiseAlert", "A_AlertMonsters", 0, 2,
+		{ M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ { 1, 2 /*AMF_TARGETNONPLAYER*/ }, M21_NOCONST } },
+	{ "A_HealChase", "A_HealChase", 2, 2,
+		{ { M21ARG_STATE, 0, 0 }, { M21ARG_SOUND, 1, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_SeekTracer", "A_SeekTracer", 2, 2,
+		{ { M21ARG_FIXED, 0, 0 }, { M21ARG_FIXED, 1, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_FindTracer", "A_FindTracer", 2, 2,
+		{ { M21ARG_FIXED, 0, 0 }, { M21ARG_INT, 1, 10 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_ClearTracer", "A_ClearTracer", 0, 0,
+		{ M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_JumpIfHealthBelow", "A_JumpIfHealthLower", 2, 2,
+		{ { M21ARG_STATE, 1, 0 }, { M21ARG_INT, 0, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_JumpIfTargetInSight", "A_JumpIfTargetInLOS", 2, 5,
+		{ { M21ARG_STATE, 0, 0 }, { M21ARG_FIXED, 1, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_JumpIfTargetCloser", "A_JumpIfCloser", 2, 2,
+		{ { M21ARG_STATE, 1, 0 }, { M21ARG_FIXED, 0, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_JumpIfTracerInSight", "A_JumpIfTracerInSight", 2, 2,
+		{ { M21ARG_STATE, 0, 0 }, { M21ARG_FIXED, 1, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_JumpIfTracerCloser", "A_JumpIfTracerCloser", 2, 2,
+		{ { M21ARG_STATE, 1, 0 }, { M21ARG_FIXED, 0, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_JumpIfFlagsSet", "A_JumpIfFlagsSet", 3, 3,
+		{ { M21ARG_STATE, 0, 0 }, { M21ARG_INT, 1, 0 }, { M21ARG_INT, 2, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_AddFlags", "A_AddFlags", 2, 2,
+		{ { M21ARG_INT, 0, 0 }, { M21ARG_INT, 1, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_RemoveFlags", "A_RemoveFlags", 2, 2,
+		{ { M21ARG_INT, 0, 0 }, { M21ARG_INT, 1, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_WeaponProjectile", "A_WeaponProjectile", 5, 5,
+		{ { M21ARG_CLASS, 0, 0 }, { M21ARG_FIXED, 1, 0 }, { M21ARG_FIXED, 2, 0 }, { M21ARG_FIXED, 3, 0 },
+		  { M21ARG_FIXED, 4, 0 }, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_WeaponBulletAttack", "A_WeaponBulletAttack", 5, 5,
+		{ { M21ARG_FIXED, 0, 0 }, { M21ARG_FIXED, 1, 0 }, { M21ARG_INT, 2, 1 }, { M21ARG_INT, 3, 5 },
+		  { M21ARG_INT, 4, 3 }, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_WeaponMeleeAttack", "A_WeaponMeleeAttack", 5, 5,
+		{ { M21ARG_INT, 0, 2 }, { M21ARG_INT, 1, 10 }, { M21ARG_FIXED, 2, 0x10000 }, { M21ARG_SOUND, 3, 0 },
+		  { M21ARG_FIXED, 4, 0 }, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_WeaponSound", "A_PlaySound", 2, 5,
+		{ { M21ARG_SOUND, 0, 0 }, { M21ARG_ATTN, 4, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ { 1, 1 /*CHAN_WEAPON*/ }, M21_NOCONST } },
+	{ "A_WeaponAlert", "A_AlertMonsters", 0, 0,
+		{ M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_WeaponJump", "A_WeaponJump", 2, 2,
+		{ { M21ARG_STATE, 0, 0 }, { M21ARG_INT, 1, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_ConsumeAmmo", "A_ConsumeAmmo", 1, 1,
+		{ { M21ARG_INT, 0, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_CheckAmmo", "A_CheckAmmo", 2, 2,
+		{ { M21ARG_STATE, 0, 0 }, { M21ARG_INT, 1, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_RefireTo", "A_RefireTo", 2, 2,
+		{ { M21ARG_STATE, 0, 0 }, { M21ARG_INT, 1, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+	{ "A_GunFlashTo", "A_GunFlashTo", 2, 2,
+		{ { M21ARG_STATE, 0, 0 }, { M21ARG_INT, 1, 0 }, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG, M21_NOARG },
+		{ M21_NOCONST, M21_NOCONST } },
+};
+
+// [LZ] Converts the stored Args of a state to parameters for the DECORATE
+// function implementing its MBF21 codepointer. Works like SetDehParams above.
+static void SetMBF21Params(FState *state, int codepointer)
+{
+	const MBF21CodePointerInfo &cp = MBF21CodePointers[codepointer];
+	MBF21FrameArgs *args = MBF21StateArgs.CheckKey(state);
+
+	if (args != NULL)
+	{
+		for (int i = cp.numargs; i < 8; i++)
+		{
+			if (args->argsused & (1 << i))
+			{
+				Printf("Warning: %s uses only %d args, but Args%d was set.\n", cp.name, cp.numargs, i + 1);
+			}
+		}
+	}
+	if (cp.numparams == 0)
+	{
+		return;
+	}
+
+	FScriptPosition *pos = new FScriptPosition(FString("DEHACKED"), 0);
+
+	PSymbol *s = RUNTIME_CLASS(AInventory)->Symbols.FindSymbol(FName(cp.function), true);
+	if (s == NULL || s->SymbolType != SYM_ActionFunction) return;
+	PSymbolActionFunction *sym = static_cast<PSymbolActionFunction *>(s);
+
+	// Clone the default parameter list first; see SetDehParams for the details.
+	// Note that unlike SetDehParams, the copy is NOT shifted down a slot: the
+	// state's parameters are read starting at ParameterIndex - 1, which is
+	// exactly what PrepareStateParameters returns.
+	if (state->ParameterIndex - 1 == sym->defaultparameterindex)
+	{
+		int a = PrepareStateParameters(state, cp.numparams,
+			FState::StaticFindStateOwner(state));
+		int b = sym->defaultparameterindex;
+		for (int i = 0; i < cp.numparams; i++)
+		{
+			StateParams.Set(a + i, StateParams.Get(b + i), true);
+		}
+	}
+	int ParamIndex = state->ParameterIndex - 1;
+
+	for (int i = 0; i < cp.numargs; i++)
+	{
+		const MBF21ArgMapping &m = cp.args[i];
+		bool provided = args != NULL && (args->argsused & (1 << i));
+		int val = provided ? args->value[i] : m.defvalue;
+
+		switch (m.type)
+		{
+		case M21ARG_INT:
+			StateParams.Set(ParamIndex + m.param, new FxConstant(val, *pos));
+			break;
+		case M21ARG_FIXED:
+			// NOTE: Do not convert to float here because it will lose precision. It must be double.
+			StateParams.Set(ParamIndex + m.param, new FxConstant(val / 65536., *pos));
+			break;
+		case M21ARG_ATTN:
+			StateParams.Set(ParamIndex + m.param, new FxConstant(val ? 0. /*ATTN_NONE*/ : 1. /*ATTN_NORM*/, *pos));
+			break;
+		case M21ARG_STATE:
+			if (provided)
+			{
+				StateParams.Set(ParamIndex + m.param, new FxConstant(FindState(val), *pos));
+			}
+			break;
+		case M21ARG_SOUND:
+			if (provided && val != 0)
+			{
+				if (val > 0 && (unsigned)val <= SoundMap.Size())
+				{
+					StateParams.Set(ParamIndex + m.param, new FxConstant(SoundMap[val - 1], *pos));
+				}
+				else
+				{
+					Printf("Bad sound index %d for %s\n", val, cp.name);
+				}
+			}
+			break;
+		case M21ARG_CLASS:
+			if (provided && val != 0)
+			{
+				if (val > 0 && (unsigned)val <= InfoNames.Size() && InfoNames[val - 1] != NULL)
+				{
+					StateParams.Set(ParamIndex + m.param, new FxConstant(InfoNames[val - 1], *pos));
+				}
+				else
+				{
+					Printf("Bad thing type %d for %s\n", val, cp.name);
+				}
+			}
+			break;
+		}
+	}
+	for (int i = 0; i < 2; i++)
+	{
+		if (cp.consts[i].param >= 0)
+		{
+			StateParams.Set(ParamIndex + cp.consts[i].param, new FxConstant(cp.consts[i].value, *pos));
+		}
+	}
+}
+
+// [LZ] Shared translation of MBF21 thing flags to native flags/properties.
+// Used both when parsing "MBF21 Bits" and by the A_AddFlags/A_RemoveFlags/
+// A_JumpIfFlagsSet codepointers at run time.
+static inline void Deh21SetFlag(DWORD &flagword, DWORD flag, bool set)
+{
+	if (set) flagword |= flag;
+	else flagword &= ~flag;
+}
+
+void DEH_ChangeMBF21Flags (AActor *actor, DWORD bits, bool set)
+{
+	if (bits & DEH21F_LOGRAV)			actor->gravity = set ? FRACUNIT/8 : FRACUNIT;
+	if (bits & DEH21F_SHORTMRANGE)		actor->maxtargetrange = set ? 896*FRACUNIT : 0;
+	if (bits & DEH21F_DMGIGNORED)		Deh21SetFlag(actor->flags3, MF3_NOTARGET, set);
+	if (bits & DEH21F_NORADIUSDMG)		Deh21SetFlag(actor->flags3, MF3_NORADIUSDMG, set);
+	if (bits & DEH21F_FORCERADIUSDMG)	Deh21SetFlag(actor->flags4, MF4_FORCERADIUSDMG, set);
+	if (bits & DEH21F_HIGHERMPROB)		Deh21SetFlag(actor->flags4, MF4_MISSILEEVENMORE, set);
+	if (bits & DEH21F_RANGEHALF)		Deh21SetFlag(actor->flags4, MF4_MISSILEMORE, set);
+	if (bits & DEH21F_NOTHRESHOLD)		Deh21SetFlag(actor->flags4, MF4_QUICKTORETALIATE, set);
+	if (bits & DEH21F_LONGMELEE)		actor->meleethreshold = set ? 196*FRACUNIT : 0;
+	if (bits & DEH21F_BOSS)
+	{
+		Deh21SetFlag(actor->flags2, MF2_BOSS, set);
+		// BOSS also implies splash immunity, but don't undo an explicitly set NORADIUSDMG.
+		if (!(bits & DEH21F_NORADIUSDMG))
+		{
+			Deh21SetFlag(actor->flags3, MF3_NORADIUSDMG, set);
+		}
+	}
+	if (bits & DEH21F_MAP07BOSS1)		Deh21SetFlag(actor->flags8, MF8_MAP07BOSS1, set);
+	if (bits & DEH21F_MAP07BOSS2)		Deh21SetFlag(actor->flags8, MF8_MAP07BOSS2, set);
+	if (bits & DEH21F_E1M8BOSS)			Deh21SetFlag(actor->flags8, MF8_E1M8BOSS, set);
+	if (bits & DEH21F_E2M8BOSS)			Deh21SetFlag(actor->flags8, MF8_E2M8BOSS, set);
+	if (bits & DEH21F_E3M8BOSS)			Deh21SetFlag(actor->flags8, MF8_E3M8BOSS, set);
+	if (bits & DEH21F_E4M6BOSS)			Deh21SetFlag(actor->flags8, MF8_E4M6BOSS, set);
+	if (bits & DEH21F_E4M8BOSS)			Deh21SetFlag(actor->flags8, MF8_E4M8BOSS, set);
+	if (bits & DEH21F_RIP)				Deh21SetFlag(actor->flags2, MF2_RIP, set);
+	if (bits & DEH21F_FULLVOLSOUNDS)	Deh21SetFlag(actor->flags8, MF8_FULLVOLSEE|MF8_FULLVOLDEATH, set);
+}
+
+bool DEH_CheckMBF21Flags (AActor *actor, DWORD bits)
+{
+	if ((bits & DEH21F_LOGRAV) && actor->gravity != FRACUNIT/8) return false;
+	if ((bits & DEH21F_SHORTMRANGE) && actor->maxtargetrange != 896*FRACUNIT) return false;
+	if ((bits & DEH21F_DMGIGNORED) && !(actor->flags3 & MF3_NOTARGET)) return false;
+	if ((bits & DEH21F_NORADIUSDMG) && !(actor->flags3 & MF3_NORADIUSDMG)) return false;
+	if ((bits & DEH21F_FORCERADIUSDMG) && !(actor->flags4 & MF4_FORCERADIUSDMG)) return false;
+	if ((bits & DEH21F_HIGHERMPROB) && !(actor->flags4 & MF4_MISSILEEVENMORE)) return false;
+	if ((bits & DEH21F_RANGEHALF) && !(actor->flags4 & MF4_MISSILEMORE)) return false;
+	if ((bits & DEH21F_NOTHRESHOLD) && !(actor->flags4 & MF4_QUICKTORETALIATE)) return false;
+	if ((bits & DEH21F_LONGMELEE) && actor->meleethreshold != 196*FRACUNIT) return false;
+	if ((bits & DEH21F_BOSS) && !(actor->flags2 & MF2_BOSS)) return false;
+	if ((bits & DEH21F_MAP07BOSS1) && !(actor->flags8 & MF8_MAP07BOSS1)) return false;
+	if ((bits & DEH21F_MAP07BOSS2) && !(actor->flags8 & MF8_MAP07BOSS2)) return false;
+	if ((bits & DEH21F_E1M8BOSS) && !(actor->flags8 & MF8_E1M8BOSS)) return false;
+	if ((bits & DEH21F_E2M8BOSS) && !(actor->flags8 & MF8_E2M8BOSS)) return false;
+	if ((bits & DEH21F_E3M8BOSS) && !(actor->flags8 & MF8_E3M8BOSS)) return false;
+	if ((bits & DEH21F_E4M6BOSS) && !(actor->flags8 & MF8_E4M6BOSS)) return false;
+	if ((bits & DEH21F_E4M8BOSS) && !(actor->flags8 & MF8_E4M8BOSS)) return false;
+	if ((bits & DEH21F_RIP) && !(actor->flags2 & MF2_RIP)) return false;
+	if ((bits & DEH21F_FULLVOLSOUNDS) && !(actor->flags8 & MF8_FULLVOLSEE)) return false;
+	return true;
+}
+
+void DEH_ChangeVanillaFlags (AActor *actor, DWORD bits, bool set)
+{
+	// Bits that map directly onto ZDoom's own flags word. This deliberately
+	// excludes the MF_INCHASE (SLIDE) slot, the translation bits and the MBF
+	// specific bits, which are remapped below (like PatchThing does).
+	const DWORD directmask = 0x03ffdfff;
+	if (bits & directmask)
+	{
+		if (set) actor->flags |= (bits & directmask);
+		else actor->flags &= ~(bits & directmask);
+	}
+	if (bits & 0x10000000)	// MBF TOUCHY
+	{
+		Deh21SetFlag(actor->flags6, MF6_TOUCHY, set);
+	}
+	if (bits & 0x20000000)	// MBF BOUNCES
+	{
+		if (set) actor->BounceFlags = (actor->flags & MF_MISSILE) ? BOUNCE_Classic : BOUNCE_Grenade;
+		else actor->BounceFlags = BOUNCE_None;
+	}
+	if (bits & 0x40000000)	// MBF FRIEND
+	{
+		Deh21SetFlag(actor->flags, MF_FRIENDLY, set);
+		Deh21SetFlag(actor->flags3, MF3_NOBLOCKMONST, set);
+	}
+	if (bits & 0x80000000)	// Boom TRANSLUCENT
+	{
+		actor->RenderStyle = set ? STYLE_Translucent : STYLE_Normal;
+		actor->alpha = set ? TRANSLUC50 : OPAQUE;
+	}
+}
+
+bool DEH_CheckVanillaFlags (AActor *actor, DWORD bits)
+{
+	const DWORD directmask = 0x03ffdfff;
+	if ((actor->flags & (bits & directmask)) != (bits & directmask)) return false;
+	if ((bits & 0x10000000) && !(actor->flags6 & MF6_TOUCHY)) return false;
+	if ((bits & 0x20000000) && actor->BounceFlags == BOUNCE_None) return false;
+	if ((bits & 0x40000000) && !(actor->flags & MF_FRIENDLY)) return false;
+	if ((bits & 0x80000000) && actor->RenderStyle == LegacyRenderStyles[STYLE_Normal]) return false;
+	return true;
 }
 
 static int PatchThing (int thingy)
@@ -893,6 +1307,139 @@ static int PatchThing (int thingy)
 				}
 			}
 		}
+		// [LZ] MBF21 thing fields.
+		else if (linelen == 10 && stricmp (Line1, "MBF21 Bits") == 0)
+		{
+			DWORD value = 0;
+			char *strval;
+
+			for (strval = Line2; (strval = strtok (strval, ",+| \t\f\r")); strval = NULL)
+			{
+				if (IsNum (strval))
+				{
+					value |= (DWORD)strtoul(strval, NULL, 10);
+				}
+				else
+				{
+					unsigned i;
+					for (i = 0; i < countof(MBF21ThingBitNames); i++)
+					{
+						if (!stricmp(strval, MBF21ThingBitNames[i].name))
+						{
+							value |= MBF21ThingBitNames[i].bit;
+							break;
+						}
+					}
+					if (i == countof(MBF21ThingBitNames))
+					{
+						DPrintf("Unknown MBF21 bit mnemonic %s\n", strval);
+					}
+				}
+			}
+			// The field replaces all MBF21 flags at once.
+			DEH_ChangeMBF21Flags(info, value & DEH21F_ALLFLAGS, true);
+			DEH_ChangeMBF21Flags(info, ~value & DEH21F_ALLFLAGS, false);
+		}
+		else if (linelen == 10 && stricmp (Line1, "Fast speed") == 0)
+		{
+			fixed_t fspeed = (fixed_t)val;
+			// Same treatment the Speed field receives after the loop below.
+			if (abs(fspeed) < 256)
+			{
+				fspeed <<= FRACBITS;
+			}
+			if (type != NULL)
+			{
+				const_cast<PClass *>(type)->Meta.SetMetaFixed(AMETA_FastSpeed, fspeed);
+			}
+		}
+		else if (linelen == 16 && stricmp (Line1, "Infighting group") == 0)
+		{
+			int group = atoi(Line2);
+			if (group < 0)
+			{
+				Printf("Infighting groups must not be negative (thing %d)\n", thingy);
+			}
+			else
+			{
+				info->InfightingGroup = group + 1;
+			}
+		}
+		else if (linelen == 16 && stricmp (Line1, "Projectile group") == 0)
+		{
+			int group = atoi(Line2);
+			info->ProjectileGroup = group < 0 ? -1 : group + 1;
+		}
+		else if (linelen == 12 && stricmp (Line1, "Splash group") == 0)
+		{
+			int group = atoi(Line2);
+			if (group < 0)
+			{
+				Printf("Splash groups must not be negative (thing %d)\n", thingy);
+			}
+			else
+			{
+				info->SplashGroup = group + 1;
+			}
+		}
+		else if (linelen == 11 && stricmp (Line1, "Melee range") == 0)
+		{
+			// The dehacked value uses the vanilla MELEERANGE convention, while
+			// ZDoom's meleerange does not include the target radius (hence -20).
+			info->meleerange = (fixed_t)val - 20*FRACUNIT;
+		}
+		// [LZ] DEHEXTRA: an item dropped on death, given as a thing number (0 = none).
+		else if (linelen == 12 && stricmp (Line1, "Dropped item") == 0)
+		{
+			if (type != NULL)
+			{
+				if (val >= 1 && val <= (int)InfoNames.Size() && InfoNames[val - 1] != NULL)
+				{
+					FDropItem *di = new FDropItem;
+					di->Name = InfoNames[val - 1]->TypeName;
+					di->probability = 255;
+					di->amount = -1;
+					di->Next = NULL;
+					const_cast<PClass *>(type)->Meta.SetMetaInt (ACMETA_DropItems, StoreDropItemChain (di));
+				}
+				else if (val == 0)
+				{
+					const_cast<PClass *>(type)->Meta.SetMetaInt (ACMETA_DropItems, 0);
+				}
+				else
+				{
+					Printf ("Thing %d: dropped item %d out of range\n", thingy, val);
+				}
+			}
+		}
+		// [LZ] Blood color, as implemented by other ports for DEHACKED. The indices
+		// come from Crispy Doom, which introduced the field.
+		else if (linelen == 11 && stricmp (Line1, "Blood color") == 0)
+		{
+			static const DWORD bloodcolors[] =
+			{
+				0x000000,	// 0 - Red (the default; 0 means "not translated")
+				0x9f9f9f,	// 1 - Grey
+				0x00ff00,	// 2 - Green
+				0x0000ff,	// 3 - Blue
+				0xffff00,	// 4 - Yellow
+				0x1f1f1f,	// 5 - Black
+				0xcf00cf,	// 6 - Purple
+				0xffffff,	// 7 - White
+				0xff7f00,	// 8 - Orange
+			};
+
+			if (type != NULL && val > 0 && val < (int)countof(bloodcolors))
+			{
+				PalEntry pe = bloodcolors[val];
+				pe.a = CreateBloodTranslation (pe);
+				const_cast<PClass *>(type)->Meta.SetMetaInt (AMETA_BloodColor, pe);
+			}
+			else if (type != NULL && val == 0)
+			{
+				const_cast<PClass *>(type)->Meta.SetMetaInt (AMETA_BloodColor, 0);
+			}
+		}
 		else if (linelen == 12 && stricmp (Line1, "Render Style") == 0)
 		{
 			stripwhite (Line2);
@@ -956,8 +1503,10 @@ static int PatchThing (int thingy)
 			else if (stricmp (Line1 + linelen - 6, " sound") == 0)
 			{
 				FSoundID snd;
-				
-				if (val == 0 || val >= SoundMap.Size())
+
+				// [LZ] The bounds check had an off-by-one error that made the last
+				// sound in the table unusable.
+				if (val == 0 || val > (int)SoundMap.Size())
 				{
 					if (endptr == Line2)
 					{ // Sound was not a (valid) number,
@@ -981,6 +1530,8 @@ static int PatchThing (int thingy)
 					info->DeathSound = snd;
 				else if (!strnicmp (Line1, "Action", 6))
 					info->ActiveSound = snd;
+				else if (!strnicmp (Line1, "Rip", 3))	// [LZ] MBF21
+					info->RipSound = snd;
 			}
 		}
 		else if (linelen == 4)
@@ -1403,6 +1954,45 @@ static int PatchFrame (int frameNum)
 		{
 			frame = val;
 		}
+		// [LZ] MBF21 frame fields.
+		else if (keylen == 10 && stricmp (Line1, "MBF21 Bits") == 0)
+		{
+			DWORD value = 0;
+			char *strval;
+
+			for (strval = Line2; (strval = strtok (strval, ",+| \t\f\r")); strval = NULL)
+			{
+				if (IsNum (strval))
+				{
+					value |= (DWORD)strtoul(strval, NULL, 10);
+				}
+				else if (!stricmp(strval, "SKILL5FAST"))
+				{
+					value |= 1;
+				}
+				else
+				{
+					DPrintf("Unknown MBF21 frame bit mnemonic %s\n", strval);
+				}
+			}
+			info->Fast = !!(value & 1);
+		}
+		else if (keylen == 5 && strnicmp (Line1, "Args", 4) == 0 && Line1[4] >= '1' && Line1[4] <= '8')
+		{
+			if (info != &dummy)
+			{
+				MBF21FrameArgs *args = MBF21StateArgs.CheckKey(info);
+				if (args == NULL)
+				{
+					MBF21FrameArgs newargs;
+					memset(&newargs, 0, sizeof(newargs));
+					args = &MBF21StateArgs.Insert(info, newargs);
+				}
+				const int argi = Line1[4] - '1';
+				args->value[argi] = val;
+				args->argsused |= 1 << argi;
+			}
+		}
 		else
 		{
 			Printf (unknown_str, Line1, "Frame", frameNum);
@@ -1613,6 +2203,49 @@ static int PatchWeapon (int weapNum)
 						info->AmmoUse1 = 1;
 					}
 				}
+			}
+			// [LZ] MBF21 weapon flags, translated to their ZDoom counterparts.
+			else if (stricmp (Line1, "MBF21 Bits") == 0)
+			{
+				DWORD value = 0;
+				char *strval;
+
+				for (strval = Line2; (strval = strtok (strval, ",+| \t\f\r")); strval = NULL)
+				{
+					if (IsNum (strval))
+					{
+						value |= (DWORD)strtoul(strval, NULL, 10);
+					}
+					else
+					{
+						unsigned i;
+						for (i = 0; i < countof(MBF21WeaponBitNames); i++)
+						{
+							if (!stricmp(strval, MBF21WeaponBitNames[i].name))
+							{
+								value |= MBF21WeaponBitNames[i].bit;
+								break;
+							}
+						}
+						if (i == countof(MBF21WeaponBitNames))
+						{
+							DPrintf("Unknown MBF21 weapon bit mnemonic %s\n", strval);
+						}
+					}
+				}
+				info->Kickback = (value & DEH21WF_NOTHRUST) ? 0 : 100;
+				Deh21SetFlag(info->WeaponFlags, WIF_NOALERT, !!(value & DEH21WF_SILENT));
+				Deh21SetFlag(info->WeaponFlags, WIF_NOAUTOFIRE, !!(value & DEH21WF_NOAUTOFIRE));
+				Deh21SetFlag(info->WeaponFlags, WIF_MELEEWEAPON, !!(value & DEH21WF_FLEEMELEE));
+				Deh21SetFlag(info->WeaponFlags, WIF_WIMPY_WEAPON, !!(value & DEH21WF_AUTOSWITCHFROM));
+				Deh21SetFlag(info->WeaponFlags, WIF_NO_AUTO_SWITCH, !!(value & DEH21WF_NOAUTOSWITCHTO));
+			}
+			// [LZ] "Ammo per shot" is MBF21's name for "Ammo use". It's too long to ever
+			// reach the check further below, so it has to be handled here as well.
+			else if (stricmp (Line1, "Ammo per shot") == 0)
+			{
+				info->AmmoUse1 = val;
+				info->flags6 |= MF6_INTRYMOVE;	// flag the weapon for postprocessing (reuse a flag that can't be set by external means)
 			}
 			else
 			{
@@ -2054,6 +2687,20 @@ static int PatchCodePtrs (int dummy)
 					}
 				}
 
+				// [LZ] Check for MBF21 codepointers. Some of them are implemented by
+				// existing generic functions, so remap the name and remember the state
+				// for the Args conversion that runs once the patch is fully parsed.
+				int mbf21index = -1;
+				for (unsigned int i = 0; i < countof(MBF21CodePointers); i++)
+				{
+					if (!symname.CompareNoCase(MBF21CodePointers[i].name))
+					{
+						mbf21index = i;
+						symname = MBF21CodePointers[i].function;
+						break;
+					}
+				}
+
 				// This skips the action table and goes directly to the internal symbol table
 				// DEH compatible functions are easy to recognize.
 				PSymbol *sym = RUNTIME_CLASS(AInventory)->Symbols.FindSymbol(symname, true);
@@ -2071,6 +2718,13 @@ static int PatchCodePtrs (int dummy)
 					}
 				}
 				SetPointer(state, sym, frame);
+				if (mbf21index >= 0 && sym != NULL)
+				{
+					MBF21ParamState ps;
+					ps.state = state;
+					ps.pointer = mbf21index;
+					MBF21ParamStates.Push(ps);
+				}
 			}
 		}
 	}
@@ -2520,6 +3174,8 @@ static bool DoDehPatch()
 		dversion = 1;
 	else if (dversion == 21)
 		dversion = 4;
+	else if (dversion == 2021)	// [LZ] MBF21 patches identify themselves like this.
+		dversion = 3;
 	else
 	{
 		Printf ("Patch created with unknown DOOM version.\nAssuming version 1.9.\n");
@@ -2590,6 +3246,31 @@ static void UnloadDehSupp ()
 		{
 			SetDehParams(MBFParamStates[i].state, MBFParamStates[i].pointer);
 		}
+		// [LZ] Convert the MBF21 codepointer arguments the same way.
+		for (unsigned int i=0; i < MBF21ParamStates.Size(); i++)
+		{
+			SetMBF21Params(MBF21ParamStates[i].state, MBF21ParamStates[i].pointer);
+		}
+		// Diagnose frames that define Args but whose codepointer doesn't use them.
+		{
+			TMap<FState *, MBF21FrameArgs>::Iterator it(MBF21StateArgs);
+			TMap<FState *, MBF21FrameArgs>::Pair *pair;
+			while (it.NextPair(pair))
+			{
+				unsigned int i;
+				for (i = 0; i < MBF21ParamStates.Size(); i++)
+				{
+					if (MBF21ParamStates[i].state == pair->Key) break;
+				}
+				if (i == MBF21ParamStates.Size())
+				{
+					Printf("Warning: Args set on a frame whose codepointer does not use arguments.\n");
+				}
+			}
+		}
+		MBF21ParamStates.Clear();
+		MBF21ParamStates.ShrinkToFit();
+		MBF21StateArgs.Clear();
 		MBFParamStates.Clear();
 		MBFParamStates.ShrinkToFit();
 		MBFCodePointers.Clear();
@@ -2646,10 +3327,18 @@ static bool LoadDehSupp ()
 			return false;
 		}
 
+		// [LZ] If a mod ships its own (long unsupported) DEHSUPP lump, ignore it and
+		// use the one from zandronum.pk3 instead of disabling DEHACKED altogether.
 		if (Wads.GetLumpFile(lump) > 0)
 		{
-			Printf("Warning: DEHSUPP no longer supported. DEHACKED patch disabled.\n");
-			return false;
+			Printf("Warning: %s contains a custom DEHSUPP lump. These are no longer supported, so it will be ignored.\n",
+				Wads.GetWadName(Wads.GetLumpFile(lump)));
+			lump = Wads.CheckNumForName("DEHSUPP", ns_global, 0);
+
+			if (lump == -1)
+			{
+				return false;
+			}
 		}
 		bool gotnames = false;
 		int i;
@@ -2950,6 +3639,22 @@ static bool LoadDehSupp ()
 			}
 
 			sc.MustGetStringName(";");
+		}
+
+		// [LZ] DEHEXTRA requires its extra frames to loop back to themselves by
+		// default, which cannot be expressed in DECORATE, so fix them up here.
+		{
+			const PClass *pool = PClass::FindClass("DehExtraStates");
+
+			if (pool != NULL && pool->ActorInfo != NULL)
+			{
+				FState *states = pool->ActorInfo->OwnedStates;
+
+				for (int i = 0; i < pool->ActorInfo->NumOwnedStates; ++i)
+				{
+					states[i].NextState = &states[i];
+				}
+			}
 		}
 		return true;
 	}

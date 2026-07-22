@@ -1,0 +1,1139 @@
+// [LZ] Support actors for DEHEXTRA (https://doomwiki.org/wiki/DEHEXTRA).
+
+// Pool of extra states for DEHACKED frames 1076-3999. DEHSUPP maps these
+// directly after the last MBF frame (1075). The engine points every state
+// back at itself after loading, as the DEHEXTRA spec requires.
+ACTOR DehExtraStates
+{
+	States
+	{
+	Spawn:
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAAAAAAAAAAAAAAAA -1
+		TNT1 AAAAAAAAAAAA -1
+		Stop
+	}
+}
+
+// Registers the hundred DEHEXTRA sprite names (SP00-SP99) with the sprite
+// manager so DEHACKED frames can use them and their lumps are loaded.
+ACTOR DehExtraSprites
+{
+	States
+	{
+	Spawn:
+		SP00 A -1
+		SP01 A -1
+		SP02 A -1
+		SP03 A -1
+		SP04 A -1
+		SP05 A -1
+		SP06 A -1
+		SP07 A -1
+		SP08 A -1
+		SP09 A -1
+		SP10 A -1
+		SP11 A -1
+		SP12 A -1
+		SP13 A -1
+		SP14 A -1
+		SP15 A -1
+		SP16 A -1
+		SP17 A -1
+		SP18 A -1
+		SP19 A -1
+		SP20 A -1
+		SP21 A -1
+		SP22 A -1
+		SP23 A -1
+		SP24 A -1
+		SP25 A -1
+		SP26 A -1
+		SP27 A -1
+		SP28 A -1
+		SP29 A -1
+		SP30 A -1
+		SP31 A -1
+		SP32 A -1
+		SP33 A -1
+		SP34 A -1
+		SP35 A -1
+		SP36 A -1
+		SP37 A -1
+		SP38 A -1
+		SP39 A -1
+		SP40 A -1
+		SP41 A -1
+		SP42 A -1
+		SP43 A -1
+		SP44 A -1
+		SP45 A -1
+		SP46 A -1
+		SP47 A -1
+		SP48 A -1
+		SP49 A -1
+		SP50 A -1
+		SP51 A -1
+		SP52 A -1
+		SP53 A -1
+		SP54 A -1
+		SP55 A -1
+		SP56 A -1
+		SP57 A -1
+		SP58 A -1
+		SP59 A -1
+		SP60 A -1
+		SP61 A -1
+		SP62 A -1
+		SP63 A -1
+		SP64 A -1
+		SP65 A -1
+		SP66 A -1
+		SP67 A -1
+		SP68 A -1
+		SP69 A -1
+		SP70 A -1
+		SP71 A -1
+		SP72 A -1
+		SP73 A -1
+		SP74 A -1
+		SP75 A -1
+		SP76 A -1
+		SP77 A -1
+		SP78 A -1
+		SP79 A -1
+		SP80 A -1
+		SP81 A -1
+		SP82 A -1
+		SP83 A -1
+		SP84 A -1
+		SP85 A -1
+		SP86 A -1
+		SP87 A -1
+		SP88 A -1
+		SP89 A -1
+		SP90 A -1
+		SP91 A -1
+		SP92 A -1
+		SP93 A -1
+		SP94 A -1
+		SP95 A -1
+		SP96 A -1
+		SP97 A -1
+		SP98 A -1
+		SP99 A -1
+		Stop
+	}
+}
+
+// Blank actors for the DEHEXTRA things 151-250.
+// DEHACKED patches are expected to define everything about them.
+ACTOR Deh_Actor_151
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_152
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_153
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_154
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_155
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_156
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_157
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_158
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_159
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_160
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_161
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_162
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_163
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_164
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_165
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_166
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_167
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_168
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_169
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_170
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_171
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_172
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_173
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_174
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_175
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_176
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_177
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_178
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_179
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_180
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_181
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_182
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_183
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_184
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_185
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_186
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_187
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_188
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_189
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_190
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_191
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_192
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_193
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_194
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_195
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_196
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_197
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_198
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_199
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_200
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_201
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_202
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_203
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_204
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_205
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_206
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_207
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_208
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_209
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_210
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_211
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_212
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_213
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_214
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_215
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_216
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_217
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_218
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_219
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_220
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_221
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_222
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_223
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_224
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_225
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_226
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_227
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_228
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_229
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_230
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_231
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_232
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_233
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_234
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_235
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_236
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_237
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_238
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_239
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_240
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_241
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_242
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_243
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_244
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_245
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_246
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_247
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_248
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_249
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
+
+ACTOR Deh_Actor_250
+{
+	States
+	{
+	Spawn:
+		TNT1 A -1
+	}
+}
